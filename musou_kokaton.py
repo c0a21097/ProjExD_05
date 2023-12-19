@@ -246,8 +246,14 @@ class Score:
         screen.blit(self.image, self.rect)
 
 class Hp:
-
+    """
+    こうかとんのHPメーターを表示するクラス
+    """
     def __init__(self, life):
+        """
+        HPメーターSurfaceを生成する
+        引数1 life：こうかとんのHP
+        """
         self.width = life*5
         self.height = 50
         self.color = (181, 255, 20)
@@ -256,6 +262,12 @@ class Hp:
         self.rect.centerx, self.rect.centery = 400, 100
 
     def update(self, life, screen: pg.Surface):
+        """
+        HPメーターをこうかとんのHPに応じて、表示する
+        メーターの色は、初期では、緑、半分を下回ると黄色に、1/5を下回ると、赤に変化する
+        引数1 life：こうかとんのHP
+        引数2 screen：画面Surface
+        """
         width = life*5
         if 100 < width < 250:
             self.color = (251, 202, 77)
@@ -316,7 +328,7 @@ def main():
             #time.sleep(2)
             #return
         
-        if bird.life <= 0:
+        if bird.life <= 0:  #こうかとんのHPが0を下回ったらゲームオーバー 
             time.sleep(2)
             return
 
