@@ -103,27 +103,26 @@ class Bird(pg.sprite.Sprite):
             self.image = self.imgs[self.dire]
         screen.blit(self.image, self.rect)
         
-    def demo_update(self, key_lst,screen):
+    def demo_update(self, key_dict:dict):
         """
-        押下キーに応じてこうかとんを移動させる
-        引数1 key_lst：押下キーの真理値リスト
-        引数2 screen：画面Surface
+        乱数でタイトル画面の透明こうかとんの位置を移動させる
+        (敵機が爆弾を落とす位置を同じにしないため)
+        
         """
         sum_mv = [0, 0]
         for k, mv in __class__.delta.items():
-            if key_lst[k]:
+            if key_dict[k]:
                 self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
                 sum_mv[0] += mv[0]
                 sum_mv[1] += mv[1]
         if check_bound(self.rect) != (True, True):
             for k, mv in __class__.delta.items():
-                if key_lst[k]:
+                if key_dict[k]:
                     self.rect.move_ip(-self.speed*mv[0], -self.speed*mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
-        screen.blit(self.image, self.rect)
-        
+        # screen.blit(self.image, self.rect        
 
 
 class Bomb(pg.sprite.Sprite):
@@ -268,7 +267,7 @@ class Score:
 # 追加機能 フォント画像作成
 class Generate_font():
     count = 0
-    def __init__(self,text,fonttype="hgp創英角ﾎﾟｯﾌﾟ体",size=50,color=(0,0,0)):
+    def __init__(self,text:str,fonttype="hgp創英角ﾎﾟｯﾌﾟ体",size=50,color=(0,0,0)):
         self.font = pg.font.SysFont(fonttype,size)
         self.color = color
         self.image = self.font.render(text,0,self.color)
@@ -285,11 +284,12 @@ def main():
     bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
     score = Score()
     title_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 100)
-    subfont = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 50)
     subtitle = []
     subtitle.append(Generate_font(f"ひとりでプレイ"))
     subtitle.append(Generate_font(f"ふたりでプレイ"))
     subtitle.append(Generate_font(f"せってい"))
+    se1 = pg.mixer.Sound(f"{MAIN_DIR}/bgms/lect.mp3")
+    se2 = pg.mixer.Sound(f"{MAIN_DIR}/bgms/check.mp3")
     # titleimg = title_font.render(f"こうかシューティング",0,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
     bird = Bird(3, (900, 400))
     demo_bird = Bird(3, (900, 400))
@@ -305,31 +305,53 @@ def main():
     game_mode = 0
     democount = 0
     demo_keydict = {}  # 透明なこうかとんSurfaceの移動を決めるための辞書
+    setmode = 0
     while True:
         
         if game_mode == 0:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    return 0
-                if event.type == pg.KEYDOWN and event.key == pg.K_UP:
-                    if rect_ == 0:
-                        continue
-                    else:
-                        rect_ -= 1
-                if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
-                    if rect_ ==3:
-                        continue
-                    else:
-                        rect_ += 1 
-                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
-                    if rect_ == 1:
-                        game_mode = 1
-                        rect_ = 0  # 決定を押されたら初期に戻す
-                        demo_emys = pg.sprite.Group()  # タイトル画面の後ろで敵機が動く
-                        demo_bombs = pg.sprite.Group()  # タイトル画面用のボム
-
-            # pg.draw.rect(screen,(255,255,255),(0,0,WIDTH,HEIGHT))
             screen.blit(bg_img, [0, 0])
+            
+            if setmode:
+                for event in pg.event.get():
+                    if event.type == pg.QUIT:
+                        return 0
+                    if event.type == pg.KEYDOWN and event.key == pg.K_BACKSPACE:
+                        se2.play()
+                        setmode = 0
+            else:
+                for event in pg.event.get():
+                    if event.type == pg.QUIT:
+                        return 0
+                    if event.type == pg.KEYDOWN and event.key == pg.K_UP:
+                        if rect_ == 0:
+                            continue
+                        else:
+                            rect_ -= 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+                        if rect_ ==3:
+                            continue
+                        else:
+                            rect_ += 1
+                            se1.play() 
+                    if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                        se2.play()
+                        if rect_ == 1:
+                            game_mode = 1
+                            rect_ = 0  # 決定を押されたら初期に戻す
+                            demo_emys = pg.sprite.Group()  # 初期化
+                            demo_bombs = pg.sprite.Group()  # 初期化
+                        if rect_ == 3:
+                            setmode = 1# 設定モードを有効
+                titleimg = title_font.render(f"こうかシューティング",0,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
+                screen.blit(titleimg,(WIDTH/2-500,HEIGHT/2-200))
+                if  rect_ != 0:
+                    pg.draw.rect(screen,(255,0,0),(WIDTH/2-180,HEIGHT/2-125+rect_*100,350,60),5)
+                for title in subtitle:
+                    title.update(screen)
+            
+                
+            # pg.draw.rect(screen,(255,255,255),(0,0,WIDTH,HEIGHT))
             if democount%200 == 0 and len(demo_emys) <10:  # 200フレームに1回，敵機を出現させる
                 demo_emys.add(Enemy())
             for emy in demo_emys:
@@ -341,17 +363,11 @@ def main():
             demo_keydict[pg.K_RIGHT] = random.randint(0,1)
             demo_keydict[pg.K_DOWN] = random.randint(0,1)
             demo_keydict[pg.K_UP] = random.randint(0,1)
-            demo_bird.demo_update(demo_keydict,screen)
+            demo_bird.demo_update(demo_keydict)
             demo_emys.update()
             demo_emys.draw(screen)
             demo_bombs.update()
             demo_bombs.draw(screen)
-            titleimg = title_font.render(f"こうかシューティング",0,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
-            screen.blit(titleimg,(WIDTH/2-500,HEIGHT/2-200))
-            if  rect_ != 0:
-                pg.draw.rect(screen,(255,0,0),(WIDTH/2-180,HEIGHT/2-125+rect_*100,350,60),5)
-            for title in subtitle:
-                title.update(screen)
             
             
             pg.display.update()
@@ -388,6 +404,13 @@ def main():
                 score.update(screen)
                 pg.display.update()
                 time.sleep(2)
+                # ゲームオーバーになったら全部初期化
+                tmr = 0
+                bird = Bird(3, (900, 400))
+                bombs = pg.sprite.Group()
+                beams = pg.sprite.Group()
+                exps = pg.sprite.Group()
+                emys = pg.sprite.Group()
                 game_mode = 0  # ゲームオーバーでタイトルメニューに戻る
 
             bird.update(key_lst, screen)
