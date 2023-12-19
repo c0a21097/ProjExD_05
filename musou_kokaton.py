@@ -4,6 +4,7 @@ import random
 import sys
 import time
 import pygame as pg
+from pygame.sprite import AbstractGroup
 
 
 WIDTH = 1600  # ゲームウィンドウの幅
@@ -72,6 +73,7 @@ class Bird(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
+        self.life = 100
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -243,6 +245,27 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Hp:
+
+    def __init__(self, life):
+        self.width = life*5
+        self.height = 50
+        self.color = (181, 255, 20)
+        self.image = pg.Surface((self.width, self.height)) # width:500 heght:50
+        self.rect = self.image.get_rect()
+        self.rect.centerx, self.rect.centery = 400, 100
+
+    def update(self, life, screen: pg.Surface):
+        width = life*5
+        if 100 < width < 250:
+            self.color = (251, 202, 77)
+        elif width <= 100:
+            self.color = (255, 0, 0)
+        self.image = pg.Surface((self.width, self.height)) # width:500 heght:50
+        pg.draw.rect(self.image, (125, 125, 125), (0, 0, self.width, self.height))
+        pg.draw.rect(self.image, self.color, (0, 0, width, self.height))
+        screen.blit(self.image, self.rect)
+    
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -255,6 +278,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    hp = Hp(bird.life)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -286,9 +310,13 @@ def main():
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
+            bird.life -= 10
             score.update(screen)
             pg.display.update()
-            time.sleep(2)
+            #time.sleep(2)
+            #return
+        
+        if bird.life <= 0:
             return
 
         bird.update(key_lst, screen)
@@ -301,6 +329,7 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        hp.update(bird.life, screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
