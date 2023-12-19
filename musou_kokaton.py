@@ -317,6 +317,7 @@ def main():
             #return
         
         if bird.life <= 0:
+            time.sleep(2)
             return
 
         bird.update(key_lst, screen)
