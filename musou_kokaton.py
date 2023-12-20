@@ -245,7 +245,7 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
-class Hp:
+class HitPoint:
     """
     こうかとんのHPメーターを表示するクラス
     """
@@ -278,6 +278,37 @@ class Hp:
         pg.draw.rect(self.image, self.color, (0, 0, width, self.height))
         screen.blit(self.image, self.rect)
     
+class Domain(pg.sprite.Sprite):
+    """
+    領域に関するクラス
+    """
+    colors = [(139, 0, 0), (189, 183, 107), (147, 112, 219), (0, 0, 0), (50, 205, 50), (0, 0, 139)]
+
+    def __init__(self, rad, life: int, unit: Bird):
+        """
+        領域のSurfaceと対応するCircleを生成する
+        引数1 rad：領域の半径
+        引数2 life：発動時間
+        引数3 unit：キャラクターのインスタンス
+        """
+        super().__init__()
+        self.unit = unit
+        color = random.choice(__class__.colors)  # 領域の色：クラス変数からランダム選択
+        self.image = pg.Surface((2*rad, 2*rad))
+        pg.draw.circle(self.image, color, (rad, rad), rad)
+        self.image.set_colorkey((0, 0, 0))
+        self.image.set_alpha(200)
+        self.rect = self.image.get_rect()
+        self.life = life
+
+    def update(self):
+        """
+        self.lifeを1減算し、0未満になったら、killする
+        """
+        self.rect.center = self.unit.rect.center
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -286,11 +317,12 @@ def main():
     score = Score()
 
     bird = Bird(3, (900, 400))
+    hp = HitPoint(bird.life)
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
-    hp = Hp(bird.life)
+    domains = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -301,6 +333,9 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 200:
+                score.value -= 200  # 200点ダウン
+                domains.add(Domain(200, 400, bird))
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -343,6 +378,8 @@ def main():
         exps.draw(screen)
         score.update(screen)
         hp.update(bird.life, screen)
+        domains.update()
+        domains.draw(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
