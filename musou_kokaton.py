@@ -296,8 +296,8 @@ class Domain(pg.sprite.Sprite):
         color = random.choice(__class__.colors)  # 領域の色：クラス変数からランダム選択
         self.image = pg.Surface((2*rad, 2*rad))
         pg.draw.circle(self.image, color, (rad, rad), rad)
-        self.image.set_colorkey((0, 0, 0))
         self.image.set_alpha(200)
+        self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
         self.life = life
 
@@ -333,7 +333,7 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 200:
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 0:
                 score.value -= 200  # 200点ダウン
                 domains.add(Domain(200, 400, bird))
         screen.blit(bg_img, [0, 0])
