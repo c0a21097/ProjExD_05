@@ -257,9 +257,19 @@ class HitPoint:
         self.width = life*5
         self.height = 50
         self.color = (181, 255, 20)
+        self.f_name = "bodoniblack"
         self.image = pg.Surface((self.width, self.height)) # width:500 heght:50
+        self.font1 = pg.font.SysFont(self.f_name, 40)
+        self.font2 = pg.font.SysFont(self.f_name, self.height)
+        self.text1 = self.font1.render("HP", False, (255, 255, 255))
+        self.text2 = self.font2.render(f"{life}/100", False, (255, 255, 255))
         self.rect = self.image.get_rect()
+        self.f1_rct = self.text1.get_rect()
+        self.f2_rct = self.text2 .get_rect()
         self.rect.centerx, self.rect.centery = 400, 100
+        self.f1_rct.centerx, self.f1_rct.centery = self.rect.centerx-(self.width/2)-40, self.rect.centery  
+        self.f2_rct.centerx, self.f2_rct.centery = self.rect.centerx+(self.width/2)+120, self.rect.centery
+        
 
     def update(self, life, screen: pg.Surface):
         """
@@ -276,7 +286,10 @@ class HitPoint:
         self.image = pg.Surface((self.width, self.height)) # width:500 heght:50
         pg.draw.rect(self.image, (125, 125, 125), (0, 0, self.width, self.height))
         pg.draw.rect(self.image, self.color, (0, 0, width, self.height))
+        self.text2 = self.font2.render(f"{life}/100", False, (255, 255, 255))
         screen.blit(self.image, self.rect)
+        screen.blit(self.text1, self.f1_rct)
+        screen.blit(self.text2, self.f2_rct)
     
 class Domain(pg.sprite.Sprite):
     """
