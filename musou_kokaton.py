@@ -76,6 +76,8 @@ class Bird(pg.sprite.Sprite):
         self.speed = 10
         self.life = 100
         self.max_life = 100
+        self.check_act = False
+        self.act_life = 0
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -105,6 +107,9 @@ class Bird(pg.sprite.Sprite):
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
+        self.act_life -= 1
+        if self.act_life < 0:
+            self.check_act = False
         screen.blit(self.image, self.rect)
 
 
@@ -210,6 +215,7 @@ class Enemy(pg.sprite.Sprite):
     敵機に関するクラス
     """
     imgs = [pg.image.load(f"{MAIN_DIR}/fig/alien{i}.png") for i in range(1, 4)]
+    tf = 200 # 出現頻度を200に初期化
     
     def __init__(self):
         super().__init__()
@@ -220,7 +226,7 @@ class Enemy(pg.sprite.Sprite):
         self.bound = random.randint(50, HEIGHT/2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
-
+      
     def update(self):
         """
         敵機を速度ベクトルself.vyに基づき移動（降下）させる
@@ -252,6 +258,9 @@ class Boss(pg.sprite.Sprite):
         self.late = 0
         self.life = 1000
         self.check_boot = True
+        self.check_act = False
+        self.act_life = 0
+        self.act_mode = {"domain_expansion":400}
         self.interval = random.randint(200, 400)
         self.vx, self.vy = random.randint(-6, 6), random.randint(-6, 6)
         self.images = [pg.image.load(f"{MAIN_DIR}/fig/boss.png"), pg.image.load(f"{MAIN_DIR}/fig/hit_boss.png")]
@@ -284,6 +293,9 @@ class Boss(pg.sprite.Sprite):
             self.image = self.images[0]
         else:
             self.rect.move_ip(self.vx, self.vy)
+        self.act_life -= 1
+        if self.act_life < 0:
+            self.check_act = False
         if self.late == 250:
             self.check_boot = False
         if self.check_boot:
@@ -380,7 +392,7 @@ class Domain(pg.sprite.Sprite):
         color = random.choice(__class__.colors)  # 領域の色：クラス変数からランダム選択
         self.image = pg.Surface((2*rad, 2*rad))
         pg.draw.circle(self.image, color, (rad, rad), rad)
-        self.image.set_alpha(200)
+        self.image.set_alpha(170)
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
         self.life = life
@@ -391,7 +403,7 @@ class Domain(pg.sprite.Sprite):
         """
         self.rect.center = self.unit.rect.center
         self.life -= 1
-        if self.life < 0:
+        if self.life < 0 or self.unit is None:
             self.kill()
 
 def main():
@@ -420,13 +432,16 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 0:
-                score.value -= 200  # 200点ダウン
-                domains.add(Domain(200, 400, bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 50 and not bird.check_act:
+                score.value -= 50  # 50点ダウン
+                bird.check_act = True
+                bird.act_life = 400
+                domains.add(Domain(100, bird.act_life, bird)) # 簡易領域
         screen.blit(bg_img, [0, 0])
 
-        if tmr%200 == 0 and len(bosses)==0:  # 200フレームに1回かつ，ボスがいない時に敵機を出現させる
+        if tmr%Enemy.tf == 0 and len(bosses)==0:  # 200フレームに1回かつ，ボスがいない時に敵機を出現させる
             emys.add(Enemy())
+            Enemy.tf += 50
 
         # ゲーム開始から30秒が経過かつ，敵機が5体以上いるかつ，ボスがいない時にボスを出現させる
         if pg.time.get_ticks()>30*10**3 and len(emys)>=5 and len(bosses)==0:
@@ -439,6 +454,14 @@ def main():
             for boss in bosses:
                 if boss.check_boot:
                     emy.assemble(boss.rect)
+            
+        for boss in bosses:
+            if not boss.check_act:
+                boss.check_act = True
+                act_mode = random.choice(list(boss.act_mode.keys()))
+                boss.act_life = boss.act_mode[act_mode]
+                if act_mode == "domain_expansion": # 領域展開
+                    domains.add(Domain(250, boss.act_life, boss))
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
@@ -454,9 +477,10 @@ def main():
             boss.change_img(screen)
             bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
-        if len(pg.sprite.spritecollide(bird, bosses, False)) != 0:
-            bird.life -= 1
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
+        for domain in pg.sprite.spritecollide(bird, domains, False):
+            if domain.unit.__class__.__name__=="Boss" and not bird.check_act:
+                bird.life -= 1 # こうかとんのHPを1ダウン
+                bird.change_img(8, screen) # こうかとん悲しみエフェクト
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
