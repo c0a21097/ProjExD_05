@@ -3,6 +3,7 @@ import os
 import random
 import sys
 import time
+from typing import Any
 import pygame as pg
 from pygame.sprite import AbstractGroup
 
@@ -74,6 +75,7 @@ class Bird(pg.sprite.Sprite):
         self.rect.center = xy
         self.speed = 10
         self.life = 100
+        self.max_life = 100
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -175,14 +177,18 @@ class Explosion(pg.sprite.Sprite):
     """
     爆発に関するクラス
     """
-    def __init__(self, obj: "Bomb|Enemy", life: int):
+    def __init__(self, obj: "Bomb|Enemy|Boss", life: int):
         """
         爆弾が爆発するエフェクトを生成する
-        引数1 obj：爆発するBombまたは敵機インスタンス
+        引数1 obj：爆発するBombまたは敵機またはボスインスタンス
         引数2 life：爆発時間
         """
         super().__init__()
-        img = pg.image.load(f"{MAIN_DIR}/fig/explosion.gif")
+        if obj.__class__.__name__=="Boss":
+            late = 3.0
+        else:
+            late = 1.0
+        img = pg.transform.rotozoom(pg.image.load(f"{MAIN_DIR}/fig/explosion.gif"), 0, late)
         self.imgs = [img, pg.transform.flip(img, 1, 1)]
         self.image = self.imgs[0]
         self.rect = self.image.get_rect(center=obj.rect.center)
@@ -226,6 +232,69 @@ class Enemy(pg.sprite.Sprite):
             self.state = "stop"
         self.rect.centery += self.vy
 
+    def assemble(self, dst: pg.Rect):
+        late = 0.02
+        self.vx, self.vy = late*(dst.centerx-self.rect.centerx), late*(dst.centery-self.rect.centery)
+        self.rect.move_ip(self.vx, self.vy)
+        if abs(self.vx) < 1 and abs(self.vy) < 1:
+            self.kill()
+
+
+class Boss(pg.sprite.Sprite):
+    """
+    ボスに関するクラス
+    """
+    def __init__(self):
+        """
+        ボスを生成する
+        """
+        super().__init__()
+        self.late = 0
+        self.life = 1000
+        self.check_boot = True
+        self.interval = random.randint(200, 400)
+        self.vx, self.vy = random.randint(-6, 6), random.randint(-6, 6)
+        self.images = [pg.image.load(f"{MAIN_DIR}/fig/boss.png"), pg.image.load(f"{MAIN_DIR}/fig/hit_boss.png")]
+        self.image = self.images[0]
+        self.image.set_alpha(self.late)
+        self.rect = self.image.get_rect()
+        self.rect.center = random.randint(WIDTH//3, WIDTH//3*2), random.randint(HEIGHT//3, HEIGHT//3*2)
+
+    def change_img(self, screen: pg.Surface):
+        """
+        ボス画像を切り替え，画面に転送する
+        引数1 screen：画面Surface
+        """  
+        self.image = self.images[1]
+        screen.blit(self.image, self.rect)
+
+    def update(self, tmr: int, exps: Explosion, score: "Score"):
+        """
+        ボスをランダムに移動させる
+        ボスのHPが0になったら、killする
+        引数1 tmr：フレーム数
+        引数2 exps：Explosionグループ
+        引数3 score：Scoreインスタンス
+        """
+        if tmr%self.interval==0:
+            self.vx, self.vy = 0, 0
+            self.rect.move_ip(self.vx, self.vy)
+            self.vx, self.vy = random.randint(-6, 6), random.randint(-6, 6)
+            self.interval = random.randint(200, 400)
+            self.image = self.images[0]
+        else:
+            self.rect.move_ip(self.vx, self.vy)
+        if self.late == 250:
+            self.check_boot = False
+        if self.check_boot:
+            self.late += 1
+            self.image.set_alpha(self.late)
+        if self.life <= 0:
+            exps.add(Explosion(self, 150)) # 爆発エフェクト
+            score.value += 100 # 100点アップ
+            self.kill()
+        if check_bound(self.rect) != (True, True):
+            self.rect.move_ip(-self.vx, -self.vy)
 
 class Score:
     """
@@ -247,46 +316,48 @@ class Score:
 
 class HitPoint:
     """
-    こうかとんのHPメーターを表示するクラス
+    キャラクターのHPメーターを表示するクラス
     """
-    def __init__(self, life):
+    def __init__(self, unit: Bird|Boss, rct_center: tuple):
         """
         HPメーターSurfaceを生成する
-        引数1 life：こうかとんのHP
+        引数1 unit：キャラクターインスタンス
+        引数2 rct_center：HPメーターの中心座標タプル
         """
-        self.width = life*5
+        self.unit = unit
+        self.width = unit.life*5
         self.height = 50
         self.color = (181, 255, 20)
         self.f_name = "bodoniblack"
-        self.image = pg.Surface((self.width, self.height)) # width:500 heght:50
+        self.image = pg.Surface((self.width, self.height))
         self.font1 = pg.font.SysFont(self.f_name, 40)
         self.font2 = pg.font.SysFont(self.f_name, self.height)
         self.text1 = self.font1.render("HP", False, (255, 255, 255))
-        self.text2 = self.font2.render(f"{life}/100", False, (255, 255, 255))
+        self.text2 = self.font2.render(f"{unit.life}/{unit.max_life}", False, (255, 255, 255))
         self.rect = self.image.get_rect()
         self.f1_rct = self.text1.get_rect()
         self.f2_rct = self.text2 .get_rect()
-        self.rect.centerx, self.rect.centery = 400, 100
+        self.rect.centerx, self.rect.centery = rct_center
         self.f1_rct.centerx, self.f1_rct.centery = self.rect.centerx-(self.width/2)-40, self.rect.centery  
         self.f2_rct.centerx, self.f2_rct.centery = self.rect.centerx+(self.width/2)+120, self.rect.centery
         
 
-    def update(self, life, screen: pg.Surface):
+    def update(self, unit: Bird|Boss, screen: pg.Surface):
         """
-        HPメーターをこうかとんのHPに応じて、表示する
+        HPメーターをキャラクターのHPに応じて、表示する
         メーターの色は、初期では、緑、半分を下回ると黄色に、1/5を下回ると、赤に変化する
-        引数1 life：こうかとんのHP
+        引数1 unit：キャラクターインスタンス
         引数2 screen：画面Surface
         """
-        width = life*5
+        width = unit.life*5
         if 100 < width < 250:
             self.color = (251, 202, 77)
         elif width <= 100:
             self.color = (255, 0, 0)
-        self.image = pg.Surface((self.width, self.height)) # width:500 heght:50
+        self.image = pg.Surface((self.width, self.height))
         pg.draw.rect(self.image, (125, 125, 125), (0, 0, self.width, self.height))
         pg.draw.rect(self.image, self.color, (0, 0, width, self.height))
-        self.text2 = self.font2.render(f"{life}/100", False, (255, 255, 255))
+        self.text2 = self.font2.render(f"{unit.life}/{unit.max_life}", False, (255, 255, 255))
         screen.blit(self.image, self.rect)
         screen.blit(self.text1, self.f1_rct)
         screen.blit(self.text2, self.f2_rct)
@@ -297,12 +368,12 @@ class Domain(pg.sprite.Sprite):
     """
     colors = [(139, 0, 0), (189, 183, 107), (147, 112, 219), (0, 0, 0), (50, 205, 50), (0, 0, 139)]
 
-    def __init__(self, rad, life: int, unit: Bird):
+    def __init__(self, rad, life: int, unit: Bird|Boss):
         """
         領域のSurfaceと対応するCircleを生成する
         引数1 rad：領域の半径
         引数2 life：発動時間
-        引数3 unit：キャラクターのインスタンス
+        引数3 unit：こうかとんまたはボスインスタンス
         """
         super().__init__()
         self.unit = unit
@@ -326,15 +397,18 @@ class Domain(pg.sprite.Sprite):
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
-    bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
+    #bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
+    bg_img = pg.Surface((WIDTH, HEIGHT))
+    pg.draw.rect(bg_img, (0, 0, 0), (0, 0, WIDTH, HEIGHT))
     score = Score()
 
     bird = Bird(3, (900, 400))
-    hp = HitPoint(bird.life)
+    hps = [HitPoint(bird, (400, 100))]
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    bosses = pg.sprite.Group()
     domains = pg.sprite.Group()
 
     tmr = 0
@@ -351,13 +425,20 @@ def main():
                 domains.add(Domain(200, 400, bird))
         screen.blit(bg_img, [0, 0])
 
-        if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
+        if tmr%200 == 0 and len(bosses)==0:  # 200フレームに1回かつ，ボスがいない時に敵機を出現させる
             emys.add(Enemy())
+
+        # ゲーム開始から30秒が経過かつ，敵機が5体以上いるかつ，ボスがいない時にボスを出現させる
+        if pg.time.get_ticks()>30*10**3 and len(emys)>=5 and len(bosses)==0:
+            bosses.add(Boss())
 
         for emy in emys:
             if emy.state == "stop" and tmr%emy.interval == 0:
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
+            for boss in bosses:
+                if boss.check_boot:
+                    emy.assemble(boss.rect)
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
@@ -368,11 +449,20 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
+        for boss in pg.sprite.groupcollide(bosses, beams, False, True).keys():
+            boss.life -= 50 # ボスのHPを50ダウン
+            boss.change_img(screen)
+            bird.change_img(6, screen)  # こうかとん喜びエフェクト
+
+        if len(pg.sprite.spritecollide(bird, bosses, False)) != 0:
+            bird.life -= 1
+            bird.change_img(8, screen) # こうかとん悲しみエフェクト
+
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            bird.life -= 10
-            score.update(screen)
-            pg.display.update()
+            bird.life -= 10 # こうかとんのHPを10ダウン
+            #score.update(screen)
+            #pg.display.update()
             #time.sleep(2)
             #return
         
@@ -385,12 +475,15 @@ def main():
         beams.draw(screen)
         emys.update()
         emys.draw(screen)
+        bosses.update(tmr, exps, score)
+        bosses.draw(screen)
         bombs.update()
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
         score.update(screen)
-        hp.update(bird.life, screen)
+        for hp in hps:
+            hp.update(hp.unit, screen)
         domains.update()
         domains.draw(screen)
         pg.display.update()
