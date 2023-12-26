@@ -10,7 +10,7 @@ from pygame.sprite import AbstractGroup
 WIDTH = 1600  # ゲームウィンドウの幅
 HEIGHT = 900  # ゲームウィンドウの高さ
 MAIN_DIR = os.path.split(os.path.abspath(__file__))[0]
-
+bool_lst = [True,False]
 
 def check_bound(obj: pg.Rect) -> tuple[bool, bool]:
     """
@@ -104,6 +104,27 @@ class Bird(pg.sprite.Sprite):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
         screen.blit(self.image, self.rect)
+        
+    def demo_update(self, key_dict:dict):
+        """
+        乱数でタイトル画面の透明こうかとんの位置を移動させる
+        (敵機が爆弾を落とす位置を同じにしないため)
+        
+        """
+        sum_mv = [0, 0]
+        for k, mv in __class__.delta.items():
+            if key_dict[k]:
+                self.rect.move_ip(+self.speed*mv[0], +self.speed*mv[1])
+                sum_mv[0] += mv[0]
+                sum_mv[1] += mv[1]
+        if check_bound(self.rect) != (True, True):
+            for k, mv in __class__.delta.items():
+                if key_dict[k]:
+                    self.rect.move_ip(-self.speed*mv[0], -self.speed*mv[1])
+        if not (sum_mv[0] == 0 and sum_mv[1] == 0):
+            self.dire = tuple(sum_mv)
+            self.image = self.imgs[self.dire]
+        # screen.blit(self.image, self.rect        
 
 
 class Bomb(pg.sprite.Sprite):
@@ -131,11 +152,12 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centery = emy.rect.centery+emy.rect.height/2
         self.speed = 6
 
-    def update(self):
+    def update(self,v):
         """
         爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
         引数 screen：画面Surface
         """
+        self.speed +=v
         self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
@@ -323,78 +345,269 @@ class Domain(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
+# 追加機能 フォント画像作成
+class Generate_font():
+    count = 0
+    def __init__(self,text:str,fonttype="hgp創英角ﾎﾟｯﾌﾟ体",size=50,color=(0,0,0)):
+        self.font = pg.font.SysFont(fonttype,size)
+        self.color = color
+        self.image = self.font.render(text,0,self.color)
+        self.rect = self.image.get_rect()
+        self.rect.center = WIDTH/2,HEIGHT/2+__class__.count
+        __class__.count += 100
+    def update(self,screen:pg.Surface):
+        screen.blit(self.image,self.rect)
+        
+    def crean():
+        __class__.count = 0  # class変数初期化関数
+    
+    # def __call__(self):
+    #     0
+        
+
 def main():
-    pg.display.set_caption("真！こうかとん無双")
+    pg.display.set_caption("こうかシューティング")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
     score = Score()
-
+    title_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 100)
+    sub_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体",50)
+    subtitle = []
+    subtitle.append(Generate_font(f"ひとりでプレイ"))
+    subtitle.append(Generate_font(f"ふたりでプレイ"))
+    subtitle.append(Generate_font(f"せってい"))
+    set_chara = title_font.render(f"せってい",0,(0,0,0))
+    emys_hind = sub_font.render(f"てきのしゅつげんひんど",0,(0,0,0))
+    emys_hind1 =sub_font.render(f"すくない",0,(0,0,0))
+    emys_hind2 =sub_font.render(f"ふつう",0,(0,0,0))
+    emys_hind3 =sub_font.render(f"おおい",0,(0,0,0))
+    lst = []
+    lst.append(emys_hind1)
+    lst.append(emys_hind2)
+    lst.append(emys_hind3)
+    emys_charalst=[]
+    emys_charalst.append(lst)
+    bombspeed = sub_font.render(f"ばくだんのはやさ",0,(0,0,0))
+    bombspeed1 = sub_font.render(f"おそい",0,(0,0,0))    
+    bombspeed2 = sub_font.render(f"ふつう",0,(0,0,0))    
+    bombspeed3 = sub_font.render(f"はええ",0,(0,0,0))
+    lst = []
+    lst.append(bombspeed1)
+    lst.append(bombspeed2)
+    lst.append(bombspeed3)
+    emys_charalst.append(lst)
+    print(emys_charalst)
+    encount = 200  # 初期の敵出現時間感覚
+    se1 = pg.mixer.Sound(f"{MAIN_DIR}/bgms/lect.mp3")
+    se2 = pg.mixer.Sound(f"{MAIN_DIR}/bgms/check.mp3")
+    # titleimg = title_font.render(f"こうかシューティング",0,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
     bird = Bird(3, (900, 400))
+
     hp = HitPoint(bird.life)
+    demo_bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
     domains = pg.sprite.Group()
-
+    demo_emys = pg.sprite.Group()  # タイトル画面の後ろで敵機が動く
+    demo_bombs = pg.sprite.Group()  # タイトル画面用のボム
+    rect_ = 0  # どのモードをいま選択しているか枠で囲むための変数
+    Generate_font.crean()
     tmr = 0
     clock = pg.time.Clock()
+    game_mode = 0
+    democount = 0
+    demo_keydict = {}  # 透明なこうかとんSurfaceの移動を決めるための辞書
+    setmode = 0
+    set_rect = 0
+    hind_index = 0
+    bomb_index = 0
+    hind_dict = {0:200,1:150,2:50}
+    bomb_dict = {0:0,1:0.6,2:1.3}
     while True:
-        key_lst = pg.key.get_pressed()
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                return 0
-            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 0:
-                score.value -= 200  # 200点ダウン
-                domains.add(Domain(200, 400, bird))
-        screen.blit(bg_img, [0, 0])
+        screen.blit(bg_img,[0,0])
+        if game_mode == 0:
+            if democount%hind_dict[hind_index] == 0 and len(demo_emys) <10:  # 200フレームに1回，敵機を出現させる
+                demo_emys.add(Enemy())
+            for emy in demo_emys:
+                if emy.state == "stop" and democount%emy.interval == 0:
+                    # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
+                    demo_bombs.add(Bomb(emy, demo_bird))
+            
+            demo_keydict[pg.K_LEFT] = random.randint(0,1)
+            demo_keydict[pg.K_RIGHT] = random.randint(0,1)
+            demo_keydict[pg.K_DOWN] = random.randint(0,1)
+            demo_keydict[pg.K_UP] = random.randint(0,1)
+            demo_bird.demo_update(demo_keydict)
+            demo_emys.update()
+            demo_emys.draw(screen)
+            demo_bombs.update(bomb_dict[bomb_index])
+            demo_bombs.draw(screen)
+        
+            # screen.blit(bg_img, [0, 0])
+            
+            if setmode:
+                for event in pg.event.get():
+                    if event.type == pg.QUIT:
+                        return 0
+                    if event.type == pg.KEYDOWN and event.key == pg.K_BACKSPACE:
+                        se2.play()
+                        set_rect = 0
+                        setmode = 0
+                    if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+                        if set_rect <2:
+                            set_rect += 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_UP:
+                        if set_rect >0:
+                            set_rect -= 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_RIGHT:
+                        if set_rect == 1 and hind_index <2:
+                            hind_index += 1
+                            se1.play()
+                        if set_rect == 2 and bomb_index <2:
+                            bomb_index += 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_LEFT:
+                        if set_rect == 1 and hind_index >0:
+                            hind_index -= 1
+                            se1.play()
+                        if set_rect == 2 and bomb_index >0:
+                            bomb_index-=1
+                            se1.play()
+                        
+                screen.blit(set_chara,(WIDTH/2-200,HEIGHT/2-300))
+                screen.blit(emys_charalst[0][hind_index],(WIDTH/2-200,HEIGHT/2-100))
+                screen.blit(emys_hind,(WIDTH/2-500,HEIGHT/2-170))
+                screen.blit(bombspeed,((WIDTH/2-500,HEIGHT/2+130)))
+                screen.blit(emys_charalst[1][bomb_index],(WIDTH/2-200,HEIGHT/2+200))
+                if set_rect == 1:
+                    pg.draw.line(screen,(0,0,0),(WIDTH/2-500,HEIGHT/2-120),(WIDTH/2+50,HEIGHT/2-120),5)
+                elif set_rect ==2:
+                    pg.draw.line(screen,(0,0,0),(WIDTH/2-500,HEIGHT/2+180),(WIDTH/2-100,HEIGHT/2+180),5)
+                
+                
+                
+            else:
+                for event in pg.event.get():
+                    if event.type == pg.QUIT:
+                        return 0
+                    if event.type == pg.KEYDOWN and event.key == pg.K_UP:
+                        if rect_ == 0:
+                            continue
+                        else:
+                            rect_ -= 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+                        if rect_ ==3:
+                            continue
+                        else:
+                            rect_ += 1
+                            se1.play() 
+                    if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                        se2.play()
+                        if rect_ == 1:
+                            game_mode = 1
+                            rect_ = 0  # 決定を押されたら初期に戻す
+                            demo_emys = pg.sprite.Group()  # 初期化
+                            demo_bombs = pg.sprite.Group()  # 初期化
+                        if rect_ == 3:
+                            setmode = 1# 設定モードを有効
+                titleimg = title_font.render(f"こうかシューティング",0,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
+                screen.blit(titleimg,(WIDTH/2-500,HEIGHT/2-200))
+                if  rect_ != 0:
+                    pg.draw.rect(screen,(255,0,0),(WIDTH/2-180,HEIGHT/2-125+rect_*100,350,60),5)
+                for title in subtitle:
+                    title.update(screen)
+            
+                
+            # pg.draw.rect(screen,(255,255,255),(0,0,WIDTH,HEIGHT))
+            # if democount%hind_dict[hind_index] == 0 and len(demo_emys) <10:  # 200フレームに1回，敵機を出現させる
+            #     demo_emys.add(Enemy())
+            # for emy in demo_emys:
+            #     if emy.state == "stop" and democount%emy.interval == 0:
+            #         # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
+            #         demo_bombs.add(Bomb(emy, demo_bird))
+            
+            # demo_keydict[pg.K_LEFT] = random.randint(0,1)
+            # demo_keydict[pg.K_RIGHT] = random.randint(0,1)
+            # demo_keydict[pg.K_DOWN] = random.randint(0,1)
+            # demo_keydict[pg.K_UP] = random.randint(0,1)
+            # demo_bird.demo_update(demo_keydict)
+            # demo_emys.update()
+            # demo_emys.draw(screen)
+            # demo_bombs.update(bomb_dict[bomb_index])
+            # demo_bombs.draw(screen)
+            
+            
+            pg.display.update()
+            democount+=1
+        elif game_mode == 1:
+            
+            key_lst = pg.key.get_pressed()
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    return 0
+                if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                    beams.add(Beam(bird))
+                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 0:
+                    score.value -= 200  # 200点ダウン
+                    domains.add(Domain(200, 400, bird))
+            # screen.blit(bg_img, [0, 0])
 
-        if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
-            emys.add(Enemy())
+            if tmr%hind_dict[hind_index] == 0:  # 200フレームに1回，敵機を出現させる
+                emys.add(Enemy())
 
-        for emy in emys:
-            if emy.state == "stop" and tmr%emy.interval == 0:
-                # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
-                bombs.add(Bomb(emy, bird))
+            for emy in emys:
+                if emy.state == "stop" and tmr%emy.interval == 0:
+                    # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
+                    bombs.add(Bomb(emy, bird))
 
-        for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
-            exps.add(Explosion(emy, 100))  # 爆発エフェクト
-            score.value += 10  # 10点アップ
-            bird.change_img(6, screen)  # こうかとん喜びエフェクト
+            for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
+                exps.add(Explosion(emy, 100))  # 爆発エフェクト
+                score.value += 10  # 10点アップ
+                bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
-        for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
-            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
-            score.value += 1  # 1点アップ
+            for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
+                exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+                score.value += 1  # 1点アップ
 
-        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            bird.life -= 10
+
+            if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
+                bird.change_img(8, screen) # こうかとん悲しみエフェクト
+                bird.life -= 10
+                score.update(screen)
+                #pg.display.update()
+
+            if bird.life <= 0:  #こうかとんのHPが0を下回ったらゲームオーバー 
+                time.sleep(2)
+                # ゲームオーバーになったら全部初期化
+                tmr = 0
+                bird = Bird(3, (900, 400))
+                bombs = pg.sprite.Group()
+                beams = pg.sprite.Group()
+                exps = pg.sprite.Group()
+                emys = pg.sprite.Group()
+                game_mode = 0  # ゲームオーバーでタイトルメニューに戻る
+
+            bird.update(key_lst, screen)
+            beams.update()
+            beams.draw(screen)
+            emys.update()
+            emys.draw(screen)
+            bombs.update(bomb_dict[bomb_index])
+            bombs.draw(screen)
+            exps.update()
+            exps.draw(screen)
+            hp.update(bird.life, screen)
+            domains.update()
+            domains.draw(screen)
             score.update(screen)
             pg.display.update()
-            #time.sleep(2)
-            #return
-        
-        if bird.life <= 0:  #こうかとんのHPが0を下回ったらゲームオーバー 
-            time.sleep(2)
-            return
+            tmr += 1
 
-        bird.update(key_lst, screen)
-        beams.update()
-        beams.draw(screen)
-        emys.update()
-        emys.draw(screen)
-        bombs.update()
-        bombs.draw(screen)
-        exps.update()
-        exps.draw(screen)
-        score.update(screen)
-        hp.update(bird.life, screen)
-        domains.update()
-        domains.draw(screen)
-        pg.display.update()
-        tmr += 1
         clock.tick(50)
 
 
