@@ -123,7 +123,7 @@ class Bird2(pg.sprite.Sprite):
         引数2 xy：こうかとん画像の位置座標タプル
         """
         super().__init__()
-        img0 = pg.transform.rotozoom(pg.image.load(f"{MAIN_DIR}/fig/{num}.png"), 0, 2.0)
+        img0 = pg.transform.rotozoom(pg.image.load(f"{MAIN_DIR}/fig/103.png"), 0, 2.0)
         img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん
         self.imgs = {
             (+1, 0): img,  # 右
@@ -147,7 +147,7 @@ class Bird2(pg.sprite.Sprite):
         引数1 num：こうかとん画像ファイル名の番号
         引数2 screen：画面Surface
         """
-        self.image = pg.transform.rotozoom(pg.image.load(f"{MAIN_DIR}/fig/{num}.png"), 0, 2.0)
+        self.image = pg.transform.rotozoom(pg.image.load(f"{MAIN_DIR}/fig/106.png"), 0, 2.0)
         screen.blit(self.image, self.rect)
 
     def update(self, key_lst: list[bool], screen: pg.Surface):
@@ -172,7 +172,7 @@ class Bird2(pg.sprite.Sprite):
         screen.blit(self.image, self.rect)
 
 ## ここまで
-
+        
 class Bomb(pg.sprite.Sprite):
     """
     爆弾に関するクラス
@@ -404,7 +404,7 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_1:
+            if event.type == pg.KEYDOWN and event.key == pg.K_f:
                 beams2.add(Beam(bird2))  
 
         screen.blit(bg_img, [0, 0])
@@ -429,6 +429,23 @@ def main():
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
+            score.update(screen)
+            pg.display.update()
+            time.sleep(2)
+            return
+
+#bird2
+        for emy in pg.sprite.groupcollide(emys, beams2, True, True).keys():
+            exps.add(Explosion(emy, 100))  # 爆発エフェクト
+            score.value += 10  # 10点アップ
+            bird2.change_img(6, screen)  # こうかとん喜びエフェクト
+
+        for bomb in pg.sprite.groupcollide(bombs, beams2, True, True).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+            score.value += 1  # 1点アップ
+
+        if len(pg.sprite.spritecollide(bird2, bombs, True)) != 0:
+            bird2.change_img(8, screen) # こうかとん悲しみエフェクト
             score.update(screen)
             pg.display.update()
             time.sleep(2)
