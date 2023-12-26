@@ -1,4 +1,4 @@
-math
+import math
 import os
 import random
 import sys
@@ -373,7 +373,6 @@ class Enemy(pg.sprite.Sprite):
     敵機に関するクラス
     """
     imgs = [pg.image.load(f"{MAIN_DIR}/fig/alien{i}.png") for i in range(1, 4)]
-    tf = 200 # 出現頻度を200に初期化
     
     def __init__(self):
         super().__init__()
@@ -384,7 +383,7 @@ class Enemy(pg.sprite.Sprite):
         self.bound = random.randint(50, HEIGHT/2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
-      
+        
     def update(self):
         """
         敵機を速度ベクトルself.vyに基づき移動（降下）させる
@@ -589,13 +588,13 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
     
-    sound = pygame.mixer.Sound(f"{MAIN_DIR}/koukaon.mp3")#ビームの発射音
-    sounds = pygame.mixer.Sound(f"{MAIN_DIR}/Big_Hits.mp3")#敵に当たったときの音
-    sound1 = pygame.mixer.Sound(f"{MAIN_DIR}/出現.mp3")#敵が出た時
-    enamy = pygame.mixer.Sound(f"{MAIN_DIR}/ビーム音.mp3")#敵のビーム音
-    pg.mixer.music.set_volume(0.1)#bgmの音量
-    pygame.mixer.music.load(f"{MAIN_DIR}/maou.mp3")#maou.mp3のbgmの読み込み
-    pygame.mixer.music.play(1)#反映させる
+    sound = pg.mixer.Sound(f"{MAIN_DIR}/koukaon.mp3")#ビームの発射音
+    sounds = pg.mixer.Sound(f"{MAIN_DIR}/Big_Hits.mp3")#敵に当たったときの音
+    sound1 = pg.mixer.Sound(f"{MAIN_DIR}/出現.mp3")#敵が出た時
+    enamy = pg.mixer.Sound(f"{MAIN_DIR}/ビーム音.mp3")#敵のビーム音
+    pg.mixer.music.set_volume(0.5)#bgmの音量
+    pg.mixer.music.load(f"{MAIN_DIR}/maou.mp3")#maou.mp3のbgmの読み込み
+    # pg.mixer.music.play(1)#反映させる
     score = Score()
     title_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 100)
     sub_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体",50)
@@ -657,7 +656,7 @@ def main():
     set_rect = 0
     hind_index = 0
     bomb_index = 0
-    hind_dict = {0:200,1:150,2:50}
+    hind_dict = {0:200,1:150,2:40}
     bomb_dict = {0:0,1:0.6,2:1.3}
     while True:
 
@@ -791,8 +790,10 @@ def main():
                 if event.type == pg.QUIT:
                     return 0
                 if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                    beams.add(Beam(bird))
-                    sound.play(1)
+                    if len(beams) <=2:
+                        
+                        beams.add(Beam(bird))
+                        sound.play()
 
                 if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value > 50 and not bird.check_act:
                     score.value -= 50  # 50点ダウン
@@ -809,9 +810,9 @@ def main():
             
 
 
-            if tmr%Enemy.tf == 0 and len(bosses)==0:  # 200フレームに1回かつ，ボスがいない時に敵機を出現させる
-                emys.add(Enemy())
-                Enemy.tf += 50
+            # if tmr%Enemy.tf == 0 and len(bosses)==0:  # 200フレームに1回かつ，ボスがいない時に敵機を出現させる
+            #     emys.add(Enemy())
+            #     Enemy.tf += 50
 
             # ゲーム開始から30秒が経過かつ，敵機が5体以上いるかつ，ボスがいない時にボスを出現させる
             if pg.time.get_ticks()>30*10**3 and len(emys)>=5 and len(bosses)==0:
@@ -838,19 +839,19 @@ def main():
                 if tmr%((emy.interval)*0.2) == 0 and act_mode == "nomal":
                     bombs.add(Bomb(boss, bird))
 
-                    enamy.play(1)
+                    enamy.play()
 
 
             for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
                 exps.add(Explosion(emy, 100))  # 爆発エフェクト
-                sounds.play(1)#soundsで出る効果音の出力
+                sounds.play()#soundsで出る効果音の出力
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
             for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
                 exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                 sounds.set_volume(1)#soundsの音量
-                sounds.play(1)#soundsで出る効果音の出力
+                sounds.play()#soundsで出る効果音の出力
                 score.value += 1  # 1点アップ
 
             for boss in pg.sprite.groupcollide(bosses, beams, False, True).keys():
@@ -880,6 +881,9 @@ def main():
                 beams = pg.sprite.Group()
                 exps = pg.sprite.Group()
                 emys = pg.sprite.Group()
+                domains = pg.sprite.Group()
+                bosses = pg.sprite.Group()
+                score = Score()
                 bird.life = bird.max_life
                 hps = [HitPoint(bird, (400, 100))]
                 game_mode = 0  # ゲームオーバーでタイトルメニューに戻る
@@ -910,9 +914,13 @@ def main():
                 if event.type == pg.QUIT:
                     return 0
                 if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                    beams.add(Beam(bird))
+                    if len(beams) <=3:
+                        beams.add(Beam(bird))
+                        sound.play()
                 if event.type == pg.KEYDOWN and event.key == pg.K_f:
-                    beams2.add(Beam(bird2))  
+                    if len(beams2) <=3:
+                        beams2.add(Beam(bird2))
+                        sound.play()
 
             screen.blit(bg_img, [0, 0])
 
@@ -969,6 +977,7 @@ def main():
                 time.sleep(2)
                 game_mode = 0
                 bird = Bird(3, (900, 400))
+                score = Score()
 
                 bird2 = Bird2(103, (500, 400))
 
