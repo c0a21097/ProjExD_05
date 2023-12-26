@@ -150,11 +150,12 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centery = emy.rect.centery+emy.rect.height/2
         self.speed = 6
 
-    def update(self):
+    def update(self,v):
         """
         爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
         引数 screen：画面Surface
         """
+        self.speed +=v
         self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
@@ -277,6 +278,12 @@ class Generate_font():
     def update(self,screen:pg.Surface):
         screen.blit(self.image,self.rect)
         
+    def crean():
+        __class__.count = 0  # class変数初期化関数
+    
+    # def __call__(self):
+    #     0
+        
 
 def main():
     pg.display.set_caption("こうかシューティング")
@@ -284,10 +291,33 @@ def main():
     bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
     score = Score()
     title_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 100)
+    sub_font = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体",50)
     subtitle = []
     subtitle.append(Generate_font(f"ひとりでプレイ"))
     subtitle.append(Generate_font(f"ふたりでプレイ"))
     subtitle.append(Generate_font(f"せってい"))
+    set_chara = title_font.render(f"せってい",0,(0,0,0))
+    emys_hind = sub_font.render(f"てきのしゅつげんひんど",0,(0,0,0))
+    emys_hind1 =sub_font.render(f"すくない",0,(0,0,0))
+    emys_hind2 =sub_font.render(f"ふつう",0,(0,0,0))
+    emys_hind3 =sub_font.render(f"おおい",0,(0,0,0))
+    lst = []
+    lst.append(emys_hind1)
+    lst.append(emys_hind2)
+    lst.append(emys_hind3)
+    emys_charalst=[]
+    emys_charalst.append(lst)
+    bombspeed = sub_font.render(f"ばくだんのはやさ",0,(0,0,0))
+    bombspeed1 = sub_font.render(f"おそい",0,(0,0,0))    
+    bombspeed2 = sub_font.render(f"ふつう",0,(0,0,0))    
+    bombspeed3 = sub_font.render(f"はええ",0,(0,0,0))
+    lst = []
+    lst.append(bombspeed1)
+    lst.append(bombspeed2)
+    lst.append(bombspeed3)
+    emys_charalst.append(lst)
+    print(emys_charalst)
+    encount = 200  # 初期の敵出現時間感覚
     se1 = pg.mixer.Sound(f"{MAIN_DIR}/bgms/lect.mp3")
     se2 = pg.mixer.Sound(f"{MAIN_DIR}/bgms/check.mp3")
     # titleimg = title_font.render(f"こうかシューティング",0,(random.randint(0,255),random.randint(0,255),random.randint(0,255)))
@@ -300,16 +330,39 @@ def main():
     demo_emys = pg.sprite.Group()  # タイトル画面の後ろで敵機が動く
     demo_bombs = pg.sprite.Group()  # タイトル画面用のボム
     rect_ = 0  # どのモードをいま選択しているか枠で囲むための変数
+    Generate_font.crean()
     tmr = 0
     clock = pg.time.Clock()
     game_mode = 0
     democount = 0
     demo_keydict = {}  # 透明なこうかとんSurfaceの移動を決めるための辞書
     setmode = 0
+    set_rect = 0
+    hind_index = 0
+    bomb_index = 0
+    hind_dict = {0:200,1:150,2:50}
+    bomb_dict = {0:0,1:0.6,2:1.3}
     while True:
-        
+        screen.blit(bg_img,[0,0])
         if game_mode == 0:
-            screen.blit(bg_img, [0, 0])
+            if democount%hind_dict[hind_index] == 0 and len(demo_emys) <10:  # 200フレームに1回，敵機を出現させる
+                demo_emys.add(Enemy())
+            for emy in demo_emys:
+                if emy.state == "stop" and democount%emy.interval == 0:
+                    # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
+                    demo_bombs.add(Bomb(emy, demo_bird))
+            
+            demo_keydict[pg.K_LEFT] = random.randint(0,1)
+            demo_keydict[pg.K_RIGHT] = random.randint(0,1)
+            demo_keydict[pg.K_DOWN] = random.randint(0,1)
+            demo_keydict[pg.K_UP] = random.randint(0,1)
+            demo_bird.demo_update(demo_keydict)
+            demo_emys.update()
+            demo_emys.draw(screen)
+            demo_bombs.update(bomb_dict[bomb_index])
+            demo_bombs.draw(screen)
+        
+            # screen.blit(bg_img, [0, 0])
             
             if setmode:
                 for event in pg.event.get():
@@ -317,7 +370,43 @@ def main():
                         return 0
                     if event.type == pg.KEYDOWN and event.key == pg.K_BACKSPACE:
                         se2.play()
+                        set_rect = 0
                         setmode = 0
+                    if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+                        if set_rect <2:
+                            set_rect += 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_UP:
+                        if set_rect >0:
+                            set_rect -= 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_RIGHT:
+                        if set_rect == 1 and hind_index <2:
+                            hind_index += 1
+                            se1.play()
+                        if set_rect == 2 and bomb_index <2:
+                            bomb_index += 1
+                            se1.play()
+                    if event.type == pg.KEYDOWN and event.key == pg.K_LEFT:
+                        if set_rect == 1 and hind_index >0:
+                            hind_index -= 1
+                            se1.play()
+                        if set_rect == 2 and bomb_index >0:
+                            bomb_index-=1
+                            se1.play()
+                        
+                screen.blit(set_chara,(WIDTH/2-200,HEIGHT/2-300))
+                screen.blit(emys_charalst[0][hind_index],(WIDTH/2-200,HEIGHT/2-100))
+                screen.blit(emys_hind,(WIDTH/2-500,HEIGHT/2-170))
+                screen.blit(bombspeed,((WIDTH/2-500,HEIGHT/2+130)))
+                screen.blit(emys_charalst[1][bomb_index],(WIDTH/2-200,HEIGHT/2+200))
+                if set_rect == 1:
+                    pg.draw.line(screen,(0,0,0),(WIDTH/2-500,HEIGHT/2-120),(WIDTH/2+50,HEIGHT/2-120),5)
+                elif set_rect ==2:
+                    pg.draw.line(screen,(0,0,0),(WIDTH/2-500,HEIGHT/2+180),(WIDTH/2-100,HEIGHT/2+180),5)
+                
+                
+                
             else:
                 for event in pg.event.get():
                     if event.type == pg.QUIT:
@@ -352,22 +441,22 @@ def main():
             
                 
             # pg.draw.rect(screen,(255,255,255),(0,0,WIDTH,HEIGHT))
-            if democount%200 == 0 and len(demo_emys) <10:  # 200フレームに1回，敵機を出現させる
-                demo_emys.add(Enemy())
-            for emy in demo_emys:
-                if emy.state == "stop" and democount%emy.interval == 0:
-                    # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
-                    demo_bombs.add(Bomb(emy, demo_bird))
+            # if democount%hind_dict[hind_index] == 0 and len(demo_emys) <10:  # 200フレームに1回，敵機を出現させる
+            #     demo_emys.add(Enemy())
+            # for emy in demo_emys:
+            #     if emy.state == "stop" and democount%emy.interval == 0:
+            #         # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
+            #         demo_bombs.add(Bomb(emy, demo_bird))
             
-            demo_keydict[pg.K_LEFT] = random.randint(0,1)
-            demo_keydict[pg.K_RIGHT] = random.randint(0,1)
-            demo_keydict[pg.K_DOWN] = random.randint(0,1)
-            demo_keydict[pg.K_UP] = random.randint(0,1)
-            demo_bird.demo_update(demo_keydict)
-            demo_emys.update()
-            demo_emys.draw(screen)
-            demo_bombs.update()
-            demo_bombs.draw(screen)
+            # demo_keydict[pg.K_LEFT] = random.randint(0,1)
+            # demo_keydict[pg.K_RIGHT] = random.randint(0,1)
+            # demo_keydict[pg.K_DOWN] = random.randint(0,1)
+            # demo_keydict[pg.K_UP] = random.randint(0,1)
+            # demo_bird.demo_update(demo_keydict)
+            # demo_emys.update()
+            # demo_emys.draw(screen)
+            # demo_bombs.update(bomb_dict[bomb_index])
+            # demo_bombs.draw(screen)
             
             
             pg.display.update()
@@ -380,9 +469,9 @@ def main():
                     return 0
                 if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                     beams.add(Beam(bird))
-            screen.blit(bg_img, [0, 0])
+            # screen.blit(bg_img, [0, 0])
 
-            if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
+            if tmr%hind_dict[hind_index] == 0:  # 200フレームに1回，敵機を出現させる
                 emys.add(Enemy())
 
             for emy in emys:
@@ -403,7 +492,7 @@ def main():
                 bird.change_img(8, screen) # こうかとん悲しみエフェクト
                 score.update(screen)
                 pg.display.update()
-                time.sleep(2)
+                time.sleep(1)
                 # ゲームオーバーになったら全部初期化
                 tmr = 0
                 bird = Bird(3, (900, 400))
@@ -418,7 +507,7 @@ def main():
             beams.draw(screen)
             emys.update()
             emys.draw(screen)
-            bombs.update()
+            bombs.update(bomb_dict[bomb_index])
             bombs.draw(screen)
             exps.update()
             exps.draw(screen)
