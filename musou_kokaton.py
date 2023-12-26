@@ -260,7 +260,7 @@ class Boss(pg.sprite.Sprite):
         self.check_boot = True
         self.check_act = False
         self.act_life = 0
-        self.act_mode = {"domain_expansion":400}
+        self.act_mode = {"domain_expansion":400, "nomal":600}
         self.interval = random.randint(200, 400)
         self.vx, self.vy = random.randint(-6, 6), random.randint(-6, 6)
         self.images = [pg.image.load(f"{MAIN_DIR}/fig/boss.png"), pg.image.load(f"{MAIN_DIR}/fig/hit_boss.png")]
@@ -462,6 +462,10 @@ def main():
                 boss.act_life = boss.act_mode[act_mode]
                 if act_mode == "domain_expansion": # 領域展開
                     domains.add(Domain(250, boss.act_life, boss))
+
+        for boss in bosses:
+            if tmr%((emy.interval)*0.2) == 0 and act_mode == "nomal":
+                bombs.add(Bomb(boss, bird))
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
